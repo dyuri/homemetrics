@@ -4,10 +4,17 @@
 Adafruit_BME280 bme;
 Adafruit_TCS34725 tcs = Adafruit_TCS34725(TCS34725_INTEGRATIONTIME_700MS, TCS34725_GAIN_1X);
 
+// web server related
 TCPClient webClient;
 TCPServer webServer = TCPServer(80);
 char myIpAddress[24];
 
+// loop counter, measurements in every LOOPCOUNT*LOOPLENGTH msec
+int cLoop = 0;
+const int LOOPCOUNT = 50;
+const int LOOPLENGTH = 100;
+
+// led controller pin
 int tcsLed = D2;
 
 // data
@@ -45,11 +52,37 @@ void setup() {
 }
 
 void loop() {
+  // TODO turn on led on button
+  // digitalWrite(tcsLed, HIGH);
+  // digitalWrite(tcsLed, LOW);
 
-  temp = bme.readTemperature();
-  pressure = bme.readPressure() / 100.0F;
-  hum = bme.readHumidity();
+  if (cLoop % LOOPCOUNT == 0) {
+    cLoop = 0;
+    
+    temp = bme.readTemperature();
+    pressure = bme.readPressure() / 100.0F;
+    hum = bme.readHumidity();
 
+    tcs.getRawData(&r, &g, &b, &c);
+    colorTemp = tcs.calculateColorTemperature(r, g, b);
+    lux = tcs.calculateLux(r, g, b);
+
+    printDataSerial();
+  }
+
+  cLoop++;
+
+  // web serve
+  if (webClient.connected() && webClient.available()) {
+    serveWebpage();
+  } else {
+    webClient = webServer.available();
+  }
+
+  delay(LOOPLENGTH);
+}
+
+void printDataSerial() {
   Serial.print("Temperature = ");
   Serial.print(temp);
   Serial.println(" *C");
@@ -61,23 +94,8 @@ void loop() {
   Serial.print("Humidity = ");
   Serial.print(hum);
   Serial.println(" %");
-
   Serial.println();
-  
-  // digitalWrite(tcsLed, HIGH);
 
-  delay(200);
-  
-  tcs.getRawData(&r, &g, &b, &c);
-  colorTemp = tcs.calculateColorTemperature(r, g, b);
-  lux = tcs.calculateLux(r, g, b);
-
-  delay(200);
-
-  // digitalWrite(tcsLed, LOW);
-
-  // Serial
-  
   Serial.print("Color Temp: "); Serial.print(colorTemp, DEC); Serial.print(" K - ");
   Serial.print("Lux: "); Serial.print(lux, DEC); Serial.print(" - ");
   Serial.print("R: "); Serial.print(r, DEC); Serial.print(" ");
@@ -87,14 +105,6 @@ void loop() {
   Serial.println();
   
   Serial.println();
-  delay(1600);
-  
-  // web serve
-  if (webClient.connected() && webClient.available()) {
-    serveWebpage();
-  } else {
-    webClient = webServer.available();
-  }
 }
 
 void serveWebpage() {
@@ -102,30 +112,29 @@ void serveWebpage() {
   webClient.println("Connection: close");
   webClient.println();
   
-  webClient.print("T: ");
+  webClient.print("Temperature: ");
   webClient.print(temp);
   webClient.println(" *C");
   
-  webClient.print("H: ");
+  webClient.print("Humidity: ");
   webClient.print(hum);
   webClient.println(" %");
 
-  webClient.print("P: ");
+  webClient.print("Air Pressure: ");
   webClient.print(pressure);
   webClient.println(" hPa");
   
-  webClient.print("L: ");
+  webClient.print("Light: ");
   webClient.print(lux);
   webClient.println(" lux");
 
-  webClient.print("RGB: ");
-  webClient.print(r);
-  webClient.print(" ");
-  webClient.print(g);
-  webClient.print(" ");
-  webClient.print(b);
-  webClient.println();
-  
+  webClient.print("Color Red: ");
+  webClient.println(r);
+  webClient.print("Color Green: ");
+  webClient.println(g);
+  webClient.print("Color Blue: ");
+  webClient.println(b);
+
   
   webClient.flush();
   webClient.stop();
