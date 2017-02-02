@@ -7,6 +7,9 @@ import re
 HOSTS = {
     '192.168.253.165': {
         'name': 'sensor 1'
+    },
+    '192.168.253.208': {
+        'name': 'sensor 2'
     }
 }
 
